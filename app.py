@@ -3,15 +3,14 @@
 FluxFlow Studio SaaS - Professional AI Image Generation Platform
 Modern SaaS Application for E-commerce & Marketing Content Creation
 """
-
 import os
 import uuid
 import time
 import json
 import logging
 import requests
-from datetime import datetime
-from flask import Flask, render_template, request, jsonify, send_from_directory
+import jsonify
+from flask import Flask, render_template, request, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -249,13 +248,9 @@ class AdvancedFluxEngine:
     def edit_image_kontext(self, prompt, image_path):
         """Edit image using FLUX.1-Kontext-dev locally - exact HF demo implementation"""
         try:
-            # Import required libraries
-            from diffusers import FluxKontextPipeline
+            # Use API-only approach for Railway deployment
+            # Heavy model dependencies removed for lighter deployment
             from PIL import Image
-            import torch
-            
-            # Check if CUDA is available
-            device = "cuda" if torch.cuda.is_available() else "cpu"
             dtype = torch.bfloat16 if device == "cuda" else torch.float32
             
             logger.info(f"Using FLUX.1-Kontext-dev on {device}")
