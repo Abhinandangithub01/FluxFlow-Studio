@@ -9,8 +9,7 @@ import time
 import json
 import logging
 import requests
-import jsonify
-from flask import Flask, render_template, request, send_from_directory
+from flask import Flask, render_template, request, send_from_directory, jsonify
 # CORS removed for simpler deployment
 from dotenv import load_dotenv
 
