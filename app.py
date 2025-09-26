@@ -4405,5 +4405,7 @@ if __name__ == '__main__':
     print("="*80 + "\n")
 if __name__ == '__main__':
     import os
+    # Render uses PORT environment variable
     port = int(os.environ.get('PORT', 5000))
+    # Render requires host='0.0.0.0' for external access
     app.run(debug=False, host='0.0.0.0', port=port)

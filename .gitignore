@@ -66,6 +66,9 @@ test_*.py
 download_models.py
 setup_image_editing.py
 
+# Deployment
+.render/
+
 # Temporary files
 *.tmp
 *.temp
