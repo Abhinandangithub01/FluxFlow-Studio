@@ -11,7 +11,7 @@ import logging
 import requests
 import jsonify
 from flask import Flask, render_template, request, send_from_directory
-from flask_cors import CORS
+# CORS removed for simpler deployment
 from dotenv import load_dotenv
 
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+# CORS removed for simpler deployment
 
 # Configuration
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
