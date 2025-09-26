@@ -250,8 +250,7 @@ class AdvancedFluxEngine:
         try:
             # Use API-only approach for Railway deployment
             # Heavy model dependencies removed for lighter deployment
-            from PIL import Image
-            dtype = torch.bfloat16 if device == "cuda" else torch.float32
+            # Removed PIL import for cleaner deployment
             
             logger.info(f"Using FLUX.1-Kontext-dev on {device}")
             

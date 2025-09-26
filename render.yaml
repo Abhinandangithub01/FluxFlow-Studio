@@ -2,6 +2,8 @@ services:
   - type: web
     name: fluxflow-studio
     env: python
+    region: oregon
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
     envVars:
