@@ -1,0 +1,466 @@
+// FluxFlow Studio Pro - Professional App Interface
+// Enhanced with left navigation and feature-based workflow
+
+class FluxFlowApp {
+    constructor() {
+        this.currentProject = null;
+        this.currentFeature = 'professional-design';
+        this.currentIteration = null;
+        this.isProcessing = false;
+        
+        this.initializeApp();
+    }
+
+    initializeApp() {
+        this.setupEventListeners();
+        this.loadSuggestions();
+        console.log('🚀 FluxFlow Studio Pro initialized!');
+    }
+
+    setupEventListeners() {
+        // File upload handlers
+        const designUpload = document.getElementById('designUpload');
+        if (designUpload) {
+            designUpload.addEventListener('change', (e) => this.handleImageUpload(e));
+        }
+
+        // Drag and drop
+        const uploadAreas = document.querySelectorAll('.upload-area');
+        uploadAreas.forEach(area => {
+            area.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                area.style.borderColor = '#4f46e5';
+                area.style.background = 'rgba(79, 70, 229, 0.05)';
+            });
+
+            area.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                area.style.borderColor = '#d1d5db';
+                area.style.background = 'transparent';
+            });
+
+            area.addEventListener('drop', (e) => {
+                e.preventDefault();
+                area.style.borderColor = '#d1d5db';
+                area.style.background = 'transparent';
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    this.processImageFile(files[0]);
+                }
+            });
+        });
+
+        // Enter key for edit instructions
+        const editInstructions = document.getElementById('editInstructions');
+        if (editInstructions) {
+            editInstructions.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    this.applyEdit();
+                }
+            });
+        }
+    }
+
+    showAlert(message, type = 'success') {
+        const alert = document.getElementById('alert');
+        if (alert) {
+            alert.textContent = message;
+            alert.className = `alert ${type} active`;
+            
+            setTimeout(() => {
+                alert.classList.remove('active');
+            }, 5000);
+        }
+    }
+
+    showLoading(show = true) {
+        const loading = document.getElementById('loading');
+        if (loading) {
+            loading.classList.toggle('active', show);
+        }
+        this.isProcessing = show;
+    }
+
+    async handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+            await this.processImageFile(file);
+        }
+    }
+
+    async processImageFile(file) {
+        try {
+            console.log('DEBUG: Processing file:', file.name, file.size, file.type);
+            this.showLoading(true);
+            
+            // Create project if none exists
+            if (!this.currentProject) {
+                console.log('DEBUG: Creating new project...');
+                await this.createProject();
+            }
+
+            console.log('DEBUG: Current project:', this.currentProject);
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('project_id', this.currentProject.id);
+
+            console.log('DEBUG: Uploading file to /api/upload-image');
+
+            const response = await fetch('/api/upload-image', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                this.currentIteration = data.iteration;
+                this.displayImage(data.image_url);
+                this.updateHistory();
+                this.loadSuggestions();
+                
+                this.showAlert('Image uploaded successfully!');
+            } else {
+                this.showAlert(data.error || 'Failed to upload image', 'error');
+            }
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            this.showAlert('Error uploading image', 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    displayImage(imageUrl) {
+        const canvas = document.getElementById('designCanvas');
+        const image = document.getElementById('designImage');
+        
+        if (canvas && image) {
+            image.src = imageUrl;
+            canvas.style.display = 'block';
+        }
+    }
+
+    async createProject() {
+        try {
+            const response = await fetch('/api/create-project', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: `${this.getFeatureName()} Project`,
+                    type: this.currentFeature.replace('-', '_')
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                this.currentProject = data.project;
+                console.log('Project created:', this.currentProject);
+            } else {
+                throw new Error(data.error || 'Failed to create project');
+            }
+        } catch (error) {
+            console.error('Error creating project:', error);
+            this.showAlert('Error creating project', 'error');
+        }
+    }
+
+    async applyEdit() {
+        if (!this.currentProject || !this.currentIteration || this.isProcessing) {
+            this.showAlert('Please upload an image first', 'error');
+            return;
+        }
+
+        const editInstructions = document.getElementById('editInstructions');
+        const editStrength = document.getElementById('editStrength');
+        
+        const instruction = editInstructions?.value?.trim();
+        if (!instruction) {
+            this.showAlert('Please enter edit instructions', 'error');
+            return;
+        }
+
+        try {
+            this.showLoading(true);
+            
+            const response = await fetch('/api/edit-image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    project_id: this.currentProject.id,
+                    parent_iteration_id: this.currentIteration.id,
+                    edit_instruction: instruction,
+                    workflow_type: this.currentFeature.replace('-', '_'),
+                    edit_strength: editStrength?.value || 'medium',
+                    style_options: this.getStyleOptions()
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                this.currentIteration = data.iteration;
+                this.displayImage(data.image_url);
+                this.updateHistory();
+                
+                // Clear edit instructions
+                if (editInstructions) {
+                    editInstructions.value = '';
+                }
+                
+                this.showAlert('Edit applied successfully!');
+            } else {
+                this.showAlert(data.error || 'Failed to apply edit', 'error');
+            }
+        } catch (error) {
+            console.error('Error applying edit:', error);
+            this.showAlert('Error applying edit', 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    async generateFromText() {
+        const textPrompt = prompt('Enter your text prompt:');
+        if (!textPrompt?.trim()) return;
+
+        try {
+            this.showLoading(true);
+            
+            // Create project if none exists
+            if (!this.currentProject) {
+                await this.createProject();
+            }
+            
+            const response = await fetch('/api/generate-from-text', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    project_id: this.currentProject.id,
+                    text_prompt: textPrompt,
+                    workflow_type: this.currentFeature.replace('-', '_'),
+                    style_options: this.getStyleOptions()
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                this.currentIteration = data.iteration;
+                this.displayImage(data.image_url);
+                this.updateHistory();
+                this.loadSuggestions();
+                
+                this.showAlert('Image generated successfully!');
+            } else {
+                this.showAlert(data.error || 'Failed to generate image', 'error');
+            }
+        } catch (error) {
+            console.error('Error generating image:', error);
+            this.showAlert('Error generating image', 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    getStyleOptions() {
+        const options = {};
+        
+        switch (this.currentFeature) {
+            case 'professional-design':
+                options.design_style = 'professional';
+                break;
+            case 'cinematic-photo':
+                options.cinematic_style = 'modern_drama';
+                options.mood = 'dramatic';
+                break;
+            case 'marketing-content':
+                options.campaign_type = 'social_media';
+                options.target_audience = 'general';
+                break;
+        }
+        
+        return options;
+    }
+
+    getFeatureName() {
+        const names = {
+            'professional-design': 'Professional Design',
+            'cinematic-photo': 'Cinematic Photo',
+            'marketing-content': 'Marketing Content',
+            'text-to-image': 'Text to Image',
+            'batch-processing': 'Batch Processing',
+            'my-projects': 'My Projects',
+            'templates': 'Templates',
+            'exports': 'Exports'
+        };
+        return names[this.currentFeature] || 'Unknown';
+    }
+
+    loadSuggestions() {
+        const suggestions = this.getSuggestionsForFeature();
+        const suggestionsContainer = document.getElementById('suggestions');
+        
+        if (suggestionsContainer) {
+            suggestionsContainer.innerHTML = suggestions.map(suggestion => `
+                <div class="suggestion-item" onclick="fluxApp.applySuggestion('${suggestion}')">
+                    ${suggestion}
+                </div>
+            `).join('');
+        }
+    }
+
+    getSuggestionsForFeature() {
+        const suggestionMap = {
+            'professional-design': [
+                'Enhance lighting and contrast',
+                'Add professional shadows',
+                'Improve color harmony',
+                'Refine typography elements',
+                'Add modern design touches',
+                'Optimize visual hierarchy'
+            ],
+            'cinematic-photo': [
+                'Add dramatic film lighting',
+                'Apply golden hour effect',
+                'Create film noir atmosphere',
+                'Add cinematic depth of field',
+                'Enhance with vintage tones',
+                'Apply epic fantasy style'
+            ],
+            'marketing-content': [
+                'Add call-to-action elements',
+                'Enhance brand appeal',
+                'Optimize for social media',
+                'Add lifestyle context',
+                'Create premium look',
+                'Improve conversion focus'
+            ]
+        };
+        
+        return suggestionMap[this.currentFeature] || [
+            'Enhance overall quality',
+            'Improve composition',
+            'Add professional touches'
+        ];
+    }
+
+    applySuggestion(suggestion) {
+        const editInstructions = document.getElementById('editInstructions');
+        if (editInstructions) {
+            editInstructions.value = suggestion;
+            editInstructions.focus();
+        }
+    }
+
+    updateHistory() {
+        // Update history display
+        const historyList = document.getElementById('historyList');
+        if (historyList && this.currentProject) {
+            // This would be populated with actual project history
+            historyList.innerHTML = `
+                <div class="history-item">
+                    <img src="/static/placeholder.svg" class="history-thumbnail" alt="Thumbnail">
+                    <div>
+                        <div style="font-weight: 500;">Latest Edit</div>
+                        <div style="font-size: 0.8rem; color: #6b7280;">Just now</div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    async saveProject() {
+        if (!this.currentProject) {
+            this.showAlert('No project to save', 'error');
+            return;
+        }
+        
+        // Simulate save
+        this.showAlert('Project saved successfully!');
+    }
+}
+
+// Global functions for navigation and UI
+function showFeature(featureId) {
+    // Update navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    event.target.closest('.nav-item').classList.add('active');
+    
+    // Update content
+    document.querySelectorAll('.feature-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    const targetSection = document.getElementById(featureId);
+    if (targetSection) {
+        targetSection.classList.add('active');
+    }
+    
+    // Update breadcrumb
+    const breadcrumb = document.getElementById('breadcrumb-text');
+    if (breadcrumb) {
+        breadcrumb.textContent = fluxApp.getFeatureName();
+    }
+    
+    // Update current feature
+    fluxApp.currentFeature = featureId;
+    fluxApp.loadSuggestions();
+}
+
+function createNewProject() {
+    fluxApp.createProject();
+}
+
+function saveProject() {
+    fluxApp.saveProject();
+}
+
+function applyEdit() {
+    fluxApp.applyEdit();
+}
+
+function generateFromText() {
+    fluxApp.generateFromText();
+}
+
+// Initialize the app
+const fluxApp = new FluxFlowApp();
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    // Ctrl/Cmd + Enter to apply edit
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (document.getElementById('editInstructions') === document.activeElement) {
+            applyEdit();
+        }
+    }
+    
+    // Ctrl/Cmd + S to save
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveProject();
+    }
+    
+    // Ctrl/Cmd + N for new project
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        createNewProject();
+    }
+});
+
+console.log('🎨 FluxFlow Studio Pro App Interface Ready!');
+console.log('⚡ Powered by FLUX.1 Kontext [dev]');
+console.log('🏆 Built for BFL Hackathon 2024');
