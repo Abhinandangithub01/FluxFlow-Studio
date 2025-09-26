@@ -4408,10 +4408,7 @@ if __name__ == '__main__':
     print("   ✅ Modern SaaS UI/UX design")
     print("   ✅ Professional project management")
     print("="*80 + "\n")
-    
-    try:
-        app.run(debug=True, host='0.0.0.0', port=5000)
-    except Exception as e:
-        logger.error(f"Server failed to start: {e}")
-        print(f"❌ Server failed to start: {e}")
-        print("💡 Make sure port 5000 is available or try a different port")
+if __name__ == '__main__':
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
